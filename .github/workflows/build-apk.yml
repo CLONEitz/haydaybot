@@ -13,6 +13,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -24,18 +26,19 @@ jobs:
           java-version: '17'
 
       - name: Extract Android project
-        run: unzip -q hayday_bot_project.zip -d android-project
+        run: |
+          unzip -q hayday_bot_project.zip -d android-project
+          echo "Estrutura do projeto após unzip:"
+          find android-project -maxdepth 3 -type f | head -200
+
+      - name: Validate Android project
+        run: |
+          test -f android-project/gradlew || { echo "ERRO: gradlew nao encontrado"; exit 1; }
+          test -f android-project/settings.gradle || test -f android-project/settings.gradle.kts || { echo "ERRO: settings.gradle nao encontrado"; exit 1; }
+          echo "Projeto Android valido."
 
       - name: Build debug APK
         working-directory: android-project
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: hayday-bot-debug-apk
-          path: android-project/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 7
+          ./gradlew --no-daemon assembleDebug --stacktrace --info --console=plain
